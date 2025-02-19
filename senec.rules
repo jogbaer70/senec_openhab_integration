@@ -1,0 +1,79 @@
+//*********************************************************************************
+//*
+//* Ruleset für Senec V3DUO, sollte aber bei allen mit lala.cgi von Senec gehen
+//* 18.2.2025
+//*
+
+rule "Senec Charging Mode Toggle"
+when
+    Item Senec_Charging changed
+then
+    var String command = ""
+    
+    if (Senec_Charging.state == ON) {
+        logInfo("Senec", "⚡ Charging Mode Activated (Full Charge)")
+        command = "/usr/bin/curl -k -X POST https://192.168.1.56/lala.cgi -H Content-Type:application/json -d '{\"ENERGY\":{\"SAFE_CHARGE_FORCE\":\"u8_01\",\"SAFE_CHARGE_PROHIBIT\":\"\",\"SAFE_CHARGE_RUNNING\":\"\",\"LI_STORAGE_MODE_START\":\"\",\"LI_STORAGE_MODE_STOP\":\"\",\"LI_STORAGE_MODE_RUNNING\":\"\"}}'"
+    } else {
+        logInfo("Senec", "⚡ Discharging Mode Activated")
+        command = "/usr/bin/curl -k -X POST https://192.168.1.56/lala.cgi -H Content-Type:application/json -d '{\"ENERGY\":{\"SAFE_CHARGE_FORCE\":\"\",\"SAFE_CHARGE_PROHIBIT\":\"u8_01\",\"SAFE_CHARGE_RUNNING\":\"\",\"LI_STORAGE_MODE_START\":\"\",\"LI_STORAGE_MODE_STOP\":\"\",\"LI_STORAGE_MODE_RUNNING\":\"\"}}'"
+    }
+
+    val result = executeCommandLine(Duration.ofSeconds(5), "/bin/bash", "-c", command)
+    
+    if (result !== null && !result.isEmpty) {
+        logInfo("Senec", "📡 Curl Result: " + result)
+    } else {
+        logWarn("Senec", "⚠️ Curl command returned empty response")
+    }
+end
+
+rule "Check Scheduled Charging Time"
+when
+    Time cron "0 * * * * ?" // Jede Minute ausführen
+then
+    logInfo("Senec", "⏳ Checking scheduled charging time...")
+
+    val currentTime = now.withSecond(0).withNano(0)
+
+    // Prüfen, ob die Items gesetzt sind, um NullPointer zu vermeiden
+    if (DT_Senec_Charge_Start.state == NULL || DT_Senec_Charge_End.state == NULL) {
+        logWarn("Senec", "⚠️ Start-/Endzeit nicht gesetzt. Regel wird nicht ausgeführt.")
+        return
+    }
+
+    // **NEUE Methode statt getZonedDateTime()**
+    val startTime = (DT_Senec_Charge_Start.state as DateTimeType).getInstant().atZone(java.time.ZoneId.systemDefault())
+    val endTime = (DT_Senec_Charge_End.state as DateTimeType).getInstant().atZone(java.time.ZoneId.systemDefault())
+
+    // Falls Endzeit vor Startzeit liegt, setze sie auf den nächsten Tag
+    val adjustedEndTime = if (endTime.isBefore(startTime)) endTime.plusDays(1) else endTime
+
+    // Aktuelle Stunden & Minuten extrahieren
+    val currentHour = currentTime.getHour()
+    val currentMinute = currentTime.getMinute()
+    val startHour = startTime.getHour()
+    val startMinute = startTime.getMinute()
+    val endHour = adjustedEndTime.getHour()
+    val endMinute = adjustedEndTime.getMinute()
+
+    // Debugging-Log
+    logInfo("Senec P1", "🔍 Checking: StartTime={} | EndTime={} | AdjustedEndTime={} | AutoMode={} | TimeMode={} | CurrentTime={} | Start: {}:{} | End: {}:{} | Now: {}:{}",  
+        startTime, endTime, adjustedEndTime, Senec_Auto_Mode.state, Senec_Auto_Time_Mode.state, 
+        currentTime, startHour, startMinute, endHour, endMinute, currentHour, currentMinute)
+
+    // Prüfen, ob Automatikmodus aktiviert ist und Zeitsteuerung aktiv ist
+    if (Senec_Auto_Mode.state == ON && Senec_Auto_Time_Mode.state == ON) {
+        if (currentHour == startHour && currentMinute == startMinute) {
+            logInfo("Senec P2", "🔋 Exakte Startzeit erreicht - Ladebefehl senden.")
+            Senec_Charging.sendCommand(ON)
+        }
+        if (currentHour == endHour && currentMinute == endMinute) {
+            logInfo("Senec P2", "🔌 Exakte Endzeit erreicht - Ladebefehl stoppen.")
+            Senec_Charging.sendCommand(OFF)
+        }
+    } else {
+        logInfo("Senec", "🛑 Automatik oder Zeitsteuerung ist deaktiviert. Keine Aktion.")
+    }
+
+    logInfo("Senec", "*** Senec CRON fired once a minute - Tests completed")
+end

@@ -1,0 +1,43 @@
+Test, verschiedene Zustände des Senec zu erzeugen, indem lala.cgi API Calls durchgeführt werden.
+
+
+Werte, die im JSON an den Speicher gesendet werden: 
+---------------------------------------------------
+True  entspricht "u8_01"
+False entspricht "u8_00"
+Übergaben wie 1, true, "1" werden ignoriert
+
+Achtung: Wenn curl genutzt wird, immer -k angeben, um Zertifikatsprüfung zu vermeiden!
+
+Mittels Chrome Netzwerkkonsole extrahierte Befehlskette(n)
+{"ENERGY":{"SAFE_CHARGE_FORCE":"","SAFE_CHARGE_PROHIBIT":"u8_01","SAFE_CHARGE_RUNNING":"","LI_STORAGE_MODE_START":"","LI_STORAGE_MODE_STOP":"","LI_STORAGE_MODE_RUNNING":""}}
+
+
+=======================================================================================================================================
+Rohfassung des Strings: curl -k -X POST "https://192.168.1.56/lala.cgi" -H "Content-Type: application/json" -d ''
+{"ENERGY":{"SAFE_CHARGE_FORCE":"","SAFE_CHARGE_PROHIBIT":"","SAFE_CHARGE_RUNNING":"","LI_STORAGE_MODE_START":"","LI_STORAGE_MODE_STOP":"","LI_STORAGE_MODE_RUNNING":""}}
+=======================================================================================================================================
+
+1. Manuelle Sicherheitsladung starten (100% Füllung des Akkus) - OK
+-------------------------------------------------------------------
+Auf der Senec IP des Speichers (https://192.168.1.56) ist im Status Man. Sicherheitsladung zu lesen
+
+Lademodus:
+
+curl -k -X POST "https://192.168.1.56/lala.cgi" -H "Content-Type: application/json" -d '{"ENERGY":{"SAFE_CHARGE_FORCE":"u8_01","SAFE_CHARGE_PROHIBIT":"","SAFE_CHARGE_RUNNING":"","LI_STORAGE_MODE_START":"","LI_STORAGE_MODE_STOP":"","LI_STORAGE_MODE_RUNNING":""}}'
+
+
+
+
+2. Entladung wird gestartet
+---------------------------
+
+curl -k -X POST "https://192.168.1.56/lala.cgi" -H "Content-Type: application/json" -d '{"ENERGY":{"SAFE_CHARGE_FORCE":"","SAFE_CHARGE_PROHIBIT":"u8_01","SAFE_CHARGE_RUNNING":"","LI_STORAGE_MODE_START":"","LI_STORAGE_MODE_STOP":"","LI_STORAGE_MODE_RUNNING":""}}'
+
+
+
+3. Aktiviert den Lithium Sicherheitsmodus ("Lithium Sicherheitsmodus aktiv" - lädt die Akkus bis 25% für gesicherten Transport)
+-------------------------------------------------------------------------------------------------------------------------------
+curl -k -X POST "https://192.168.1.56/lala.cgi" -H "Content-Type: application/json" -d '{"ENERGY":{"LI_STORAGE_MODE_START":"u8_01"}}'
+
+

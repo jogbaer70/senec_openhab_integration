@@ -1,0 +1,1 @@
+Senec_Auto_Mode, Senec_Auto_Time_Mode, DT_Senec_Charge_Start, DT_Senec_Charge_End : strategy = everyChange, restoreOnStartup

@@ -1,0 +1,17 @@
+
+Switch Senec_Charging "Senec Speicher" <battery>
+String Senec_OperationMode "Betriebsmodus [%s]"
+Number Senec_SoC "Speicher-Ladestand [%d %%]" { channel="senechome:senechome:a841a11092:batteryFuelCharge " }
+
+// Umschaltung zwischen Manuell (OFF) und Automatik (ON)
+Switch Senec_Auto_Mode "Automatische Steuerung [%s]" <switch>
+
+// Umschaltung zwischen Zeit- und Tibber-Steuerung
+Switch Senec_Auto_Time_Mode "Zeit-/Tibber-Steuerung [%s]" <clock>
+
+// Start- und Endzeit der Ladeperiode
+DateTime DT_Senec_Charge_Start "Ladestart [%1$tH:%1$tM]" <time>
+DateTime DT_Senec_Charge_End "Ladeende [%1$tH:%1$tM]" <time>
+
+
+
