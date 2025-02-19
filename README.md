@@ -4,7 +4,7 @@ Schnittstellen und Softwareprodukten, wie evcc und solaranzeige oder ioBroker un
 
 Insofern sind folgende Dinge zu tun:
 1. senec Binding installieren
-2. Tibber Binding installieren
+2. Tibber Binding installieren (brauchen wir jetzt noch nicht, wird aber in Kürze kommen)
 
 Mein aktuelles Projekt kann nun bereits zeitgesteuert optimale Volladungen des Senec Speichers vornehmen, oder auch spontan manuell vorgenommene Volladungen.
 Ausstehend ist noch die Wallbox Steuerung, sowie die tatsächliche Prognose Steuerung von Tibber.
