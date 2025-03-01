@@ -23,7 +23,6 @@ Rohfassung des Strings: curl -k -X POST "https://192.168.1.56/lala.cgi" -H "Cont
 Auf der Senec IP des Speichers (https://192.168.1.56) ist im Status Man. Sicherheitsladung zu lesen
 
 Lademodus:
-
 curl -k -X POST "https://192.168.1.56/lala.cgi" -H "Content-Type: application/json" -d '{"ENERGY":{"SAFE_CHARGE_FORCE":"u8_01","SAFE_CHARGE_PROHIBIT":"","SAFE_CHARGE_RUNNING":"","LI_STORAGE_MODE_START":"","LI_STORAGE_MODE_STOP":"","LI_STORAGE_MODE_RUNNING":""}}'
 
 
@@ -31,7 +30,6 @@ curl -k -X POST "https://192.168.1.56/lala.cgi" -H "Content-Type: application/js
 
 2. Entladung wird gestartet
 ---------------------------
-
 curl -k -X POST "https://192.168.1.56/lala.cgi" -H "Content-Type: application/json" -d '{"ENERGY":{"SAFE_CHARGE_FORCE":"","SAFE_CHARGE_PROHIBIT":"u8_01","SAFE_CHARGE_RUNNING":"","LI_STORAGE_MODE_START":"","LI_STORAGE_MODE_STOP":"","LI_STORAGE_MODE_RUNNING":""}}'
 
 

@@ -1,1 +1,7 @@
-Senec_Auto_Mode, Senec_Auto_Time_Mode, DT_Senec_Charge_Start, DT_Senec_Charge_End : strategy = everyChange, restoreOnStartup
+  Senec_Auto_Mode, Senec_Auto_Time_Mode, DT_Senec_Charge_Start, DT_Senec_Charge_End : strategy = everyChange, restoreOnStartup
+
+    // Alle Tibber-Items werden nur bei einer Änderung persistiert.
+    Tibber_* : strategy = everyChange
+    Tibber_currentPrice : strategy = everyChange
+    Tibber_Tomorrow_Price_Hour* : strategy = everyChange
+    TibberTomorrowPrices* : strategy = everyChange
