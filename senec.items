@@ -1,11 +1,15 @@
-
 Switch Senec_Charging "Senec Speicher" <battery>
 String Senec_OperationMode "Betriebsmodus [%s]"
 Number Senec_SoC "Speicher-Ladestand [%d %%]" { channel="senechome:senechome:a841a11092:batteryFuelCharge " }
 
+// Erzwingt das Laden unabhängig von Zeit- oder Preissteuerung
+Switch Forced_Charging_Enabled "Forced Charging Enabled" {persist="everyChange"}
+// Erzwingt das Entladen unabhängig von Zeit- oder Preissteuerung
+Switch Unload_Battery "Unload Battery" {persist="everyChange"}
+
+
 // Umschaltung zwischen Manuell (OFF) und Automatik (ON)
 Switch Senec_Auto_Mode "Automatische Steuerung [%s]" <switch>
-
 // Umschaltung zwischen Zeit- und Tibber-Steuerung
 Switch Senec_Auto_Time_Mode "Zeit-/Tibber-Steuerung [%s]" <clock>
 
@@ -14,4 +18,28 @@ DateTime DT_Senec_Charge_Start "Ladestart [%1$tH:%1$tM]" <time>
 DateTime DT_Senec_Charge_End "Ladeende [%1$tH:%1$tM]" <time>
 
 
+Number Charging_Threshold_Raw "Charging Threshold Raw [%d]" {persist="everyChange"}
+Number Charging_Threshold_Real "Charging Threshold [%.3f €/kWh]" {persist="everyChange"}
 
+
+// Enable/Disable time-based charging
+Switch Timed_Charging_Enabled "Time-Based Charging Enabled" {persist="everyChange"}
+
+// Enable/Disable price-based charging
+Switch Price_Charging_Enabled "Price-Based Charging Enabled" {persist="everyChange"}
+
+// Stores the last Tibber price for comparison
+Number Last_Tibber_Price "Last Tibber Price [%.3f €/kWh]" {persist="everyChange"}
+
+// SimulationsItems, die bei Bedarf gelöscht oder Deaktiviert werden können.
+// Ich belasse sie und bearbeite sie mit einer eigenen HabPanel Seite
+// Simulierter Rohwert (1 - 500 Cent)
+// Schaltet den Debug-Modus für Preissteuerung EIN/AUS
+Switch Price_Debug_Mode "Debug Mode for Price Control" {persist="everyChange"}
+// Simulierter Preis in €/kWh (Converted von 1-500)
+Number Simulated_Price_Raw "Simulated Raw Price [%d]" {persist="everyChange"}
+// Simulierter umgerechneter Preis in €/kWh
+Number Simulated_Price "Simulated Price [%.3f €/kWh]" {persist="everyChange"}
+
+// 🛠️ **Manuelle Steuerung**
+Switch Senec_Forced_Charging "⚡ Forced Charging Mode" {persist="everyChange"}
