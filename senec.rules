@@ -1,37 +1,93 @@
 //*********************************************************************************
 //*
-//* Ruleset für Senec V3DUO, sollte aber bei allen mit lala.cgi von Senec gehen
+//* Ruleset für Senec V3 DUO, sollte aber bei allen mit lala.cgi von Senec gehen
 //* 18.2.2025
 //*
 
-rule "Senec Charging Mode Toggle"
-when
-    Item Senec_Charging changed
-then
-    var String command = ""
-    
-    if (Senec_Charging.state == ON) {
-        logInfo("Senec", "⚡ Charging Mode Activated (Full Charge)")
-        command = "/usr/bin/curl -k -X POST https://192.168.1.56/lala.cgi -H Content-Type:application/json -d '{\"ENERGY\":{\"SAFE_CHARGE_FORCE\":\"u8_01\",\"SAFE_CHARGE_PROHIBIT\":\"\",\"SAFE_CHARGE_RUNNING\":\"\",\"LI_STORAGE_MODE_START\":\"\",\"LI_STORAGE_MODE_STOP\":\"\",\"LI_STORAGE_MODE_RUNNING\":\"\"}}'"
-    } else {
-        logInfo("Senec", "⚡ Discharging Mode Activated")
-        command = "/usr/bin/curl -k -X POST https://192.168.1.56/lala.cgi -H Content-Type:application/json -d '{\"ENERGY\":{\"SAFE_CHARGE_FORCE\":\"\",\"SAFE_CHARGE_PROHIBIT\":\"u8_01\",\"SAFE_CHARGE_RUNNING\":\"\",\"LI_STORAGE_MODE_START\":\"\",\"LI_STORAGE_MODE_STOP\":\"\",\"LI_STORAGE_MODE_RUNNING\":\"\"}}'"
-    }
 
-    val result = executeCommandLine(Duration.ofSeconds(5), "/bin/bash", "-c", command)
-    
-    if (result !== null && !result.isEmpty) {
-        logInfo("Senec", "📡 Curl Result: " + result)
+
+//*********************************************************************************
+//*  Simulation von Preisänderungen durch Tibber
+//* Regel, um Werte des Sliders zu übersetzen. Feuert zuerst!
+rule "Convert Simulated Price"
+when
+    Item Simulated_Price_Raw changed
+then
+    val rawValue = Simulated_Price_Raw.state as Number
+    val realValue = rawValue / 1000.0  // Umrechnung in €/kWh
+    logInfo("Debug_Price", "🔄 Converted raw value: " + rawValue + " → " + realValue + " €/kWh")
+    Simulated_Price.postUpdate(realValue)
+end
+
+//* Wenn Simulated Price changed then check for debug and update Tibber Current
+rule "Debug: Override Tibber Price with Simulated Price"
+when
+    Item Simulated_Price changed
+then
+    if (Price_Debug_Mode.state == ON) {
+        logInfo("Debug_Price", "🐞 Debug Mode is ON - Overriding real Tibber price with simulated price.")
+        Tibber_current_total.postUpdate(Simulated_Price.state as Number)
     } else {
-        logWarn("Senec", "⚠️ Curl command returned empty response")
+        logInfo("Debug_Price", "ℹ️ Debug Mode is OFF - No override applied.")
     }
 end
 
-rule "Check Scheduled Charging Time"
+//* Regel, um Werte des Sliders zu übersetzen. Feuert zuerst!
+rule "Convert Simulated Price"
+when
+    Item Simulated_Price_Raw changed
+then
+    val rawValue = Simulated_Price_Raw.state as Number
+    val realValue = rawValue / 1000.0  // Umrechnung in €/kWh
+    logInfo("Simulation", "🔄 Converted raw value: " + rawValue + " → " + realValue + " €/kWh")
+    Simulated_Price.postUpdate(realValue)
+end
+
+//*  Ende von Simulation von Preisänderungen durch Tibber
+//*********************************************************************************
+
+
+rule "Control Senec Forced Charging"   //* Working
+when
+    Item Senec_Forced_Charging changed
+then
+    logInfo("Senec_Control", "🔄 Evaluating forced charging state...")
+
+    var String command = ""
+
+    if (Senec_Forced_Charging.state == ON) {
+        logInfo("Senec_Control", "⚡ Forced Charging is ON → Forcing battery charge.")
+        //curl -k -X POST "https://192.168.1.56/lala.cgi" -H "Content-Type: application/json" -d '{"ENERGY":{"SAFE_CHARGE_FORCE":"u8_01","SAFE_CHARGE_PROHIBIT":"","SAFE_CHARGE_RUNNING":"","LI_STORAGE_MODE_START":"","LI_STORAGE_MODE_STOP":"","LI_STORAGE_MODE_RUNNING":""}}'
+
+        command = "/usr/bin/curl -k -X POST \"https://192.168.1.56/lala.cgi\" -H \"Content-Type: application/json\" -d '{\"ENERGY\":{\"SAFE_CHARGE_FORCE\":\"u8_01\",\"SAFE_CHARGE_PROHIBIT\":\"\",\"SAFE_CHARGE_RUNNING\":\"\",\"LI_STORAGE_MODE_START\":\"\",\"LI_STORAGE_MODE_STOP\":\"\",\"LI_STORAGE_MODE_RUNNING\":\"\"}}'"
+    }
+    else {
+        logInfo("Senec_Control", "🛑 Forced Charging is OFF → Stopping forced charging.")
+        //curl -k -X POST "https://192.168.1.56/lala.cgi" -H "Content-Type: application/json" -d '{"ENERGY":{"SAFE_CHARGE_FORCE":"","SAFE_CHARGE_PROHIBIT":"u8_01","SAFE_CHARGE_RUNNING":"","LI_STORAGE_MODE_START":"","LI_STORAGE_MODE_STOP":"","LI_STORAGE_MODE_RUNNING":""}}'
+        command = "/usr/bin/curl -k -X POST \"https://192.168.1.56/lala.cgi\" -H \"Content-Type: application/json\" -d '{\"ENERGY\":{\"SAFE_CHARGE_FORCE\":\"\",\"SAFE_CHARGE_PROHIBIT\":\"u8_01\",\"SAFE_CHARGE_RUNNING\":\"\",\"LI_STORAGE_MODE_START\":\"\",\"LI_STORAGE_MODE_STOP\":\"\",\"LI_STORAGE_MODE_RUNNING\":\"\"}}'"
+    }
+    if (!command.isEmpty) {
+        val result = executeCommandLine(Duration.ofSeconds(5), "/bin/bash", "-c", command)
+        
+        if (result !== null && !result.isEmpty) {
+            logInfo("Senec", "📡 Curl Result: " + result)
+        } else {
+            logWarn("Senec", "⚠️ Curl command returned empty response")
+        }
+    }
+end
+
+rule "Check Scheduled Charging Time" //* working
 when
     Time cron "0 * * * * ?" // Jede Minute ausführen
 then
     logInfo("Senec", "⏳ Checking scheduled charging time...")
+
+    // NEW: Check if Timed Charging is enabled
+    if (Timed_Charging_Enabled.state != ON) {
+        logInfo("Senec", "🛑 Timed Charging is disabled. Skipping rule execution.")
+        return
+    }
 
     val currentTime = now.withSecond(0).withNano(0)
 
@@ -40,14 +96,11 @@ then
         logWarn("Senec", "⚠️ Start-/Endzeit nicht gesetzt. Regel wird nicht ausgeführt.")
         return
     }
-
     // **NEUE Methode statt getZonedDateTime()**
     val startTime = (DT_Senec_Charge_Start.state as DateTimeType).getInstant().atZone(java.time.ZoneId.systemDefault())
     val endTime = (DT_Senec_Charge_End.state as DateTimeType).getInstant().atZone(java.time.ZoneId.systemDefault())
-
     // Falls Endzeit vor Startzeit liegt, setze sie auf den nächsten Tag
     val adjustedEndTime = if (endTime.isBefore(startTime)) endTime.plusDays(1) else endTime
-
     // Aktuelle Stunden & Minuten extrahieren
     val currentHour = currentTime.getHour()
     val currentMinute = currentTime.getMinute()
@@ -65,15 +118,96 @@ then
     if (Senec_Auto_Mode.state == ON && Senec_Auto_Time_Mode.state == ON) {
         if (currentHour == startHour && currentMinute == startMinute) {
             logInfo("Senec P2", "🔋 Exakte Startzeit erreicht - Ladebefehl senden.")
-            Senec_Charging.sendCommand(ON)
+            Senec_Forced_Charging.sendCommand(ON)
         }
         if (currentHour == endHour && currentMinute == endMinute) {
             logInfo("Senec P2", "🔌 Exakte Endzeit erreicht - Ladebefehl stoppen.")
-            Senec_Charging.sendCommand(OFF)
+            Senec_Forced_Charging.sendCommand(OFF)
         }
     } else {
-        logInfo("Senec", "🛑 Automatik oder Zeitsteuerung ist deaktiviert. Keine Aktion.")
+        logInfo("Senec", "🛑 Zeitsteuerung ist deaktiviert. Keine Aktion.")
     }
 
     logInfo("Senec", "*** Senec CRON fired once a minute - Tests completed")
+end
+
+rule "Price-Based Charging" //* working
+when
+    Item Tibber_current_total changed
+then
+    logInfo("Senec_Price", "📊 Checking price-based charging...")
+
+    // Store the last price before any exit happens
+    val previousLastPrice = if (Last_Tibber_Price.state != NULL) Last_Tibber_Price.state as Number else null
+    val newPrice = Tibber_current_total.state as Number
+
+    // Ensure the stored price is updated no matter what
+    Last_Tibber_Price.postUpdate(newPrice)
+
+    // Check if Senec_Auto_Mode is enabled
+    if (Senec_Auto_Mode.state != ON) {
+        logInfo("Senec_Price", "🛑 Senec Auto Mode is OFF. Exiting price-based charging rule.")
+        return
+    }
+
+    // Check if price-based charging is enabled
+    if (Price_Charging_Enabled.state != ON) {
+        logInfo("Senec_Price", "🛑 Price-based charging is disabled. Exiting.")
+        return
+    }
+
+    // Ensure required values exist
+    if (Tibber_current_total.state == NULL || Charging_Threshold_Real.state == NULL) {
+        logWarn("Senec_Price", "⚠️ Required values missing. Exiting.")
+        return
+    }
+
+    val threshold = Charging_Threshold_Real.state as Number
+    val lastPrice = if (previousLastPrice != null) previousLastPrice else newPrice  // Fallback to current price if NULL
+
+    logInfo("Senec_Price", "📉 Current price: " + newPrice + " €/kWh | Threshold: " + threshold + " €/kWh | Last price: " + lastPrice + " €/kWh")
+
+    if (newPrice < threshold && lastPrice >= threshold) {
+        logInfo("Senec_Price", "✅ Price dropped below threshold. Starting charging.")
+        Senec_Forced_Charging.sendCommand(ON)
+    } else if (newPrice > threshold && lastPrice <= threshold) {
+        logInfo("Senec_Price", "🔌 Price exceeded threshold. Stopping charging.")
+        Senec_Forced_Charging.sendCommand(OFF)
+    } else {
+        logInfo("Senec_Price", "ℹ️ No action needed. Price is stable.")
+    }
+end
+
+
+
+rule "Convert Charging Threshold"
+when
+    Item Charging_Threshold_Raw changed
+then
+    val rawValue = Charging_Threshold_Raw.state as Number
+    val realValue = rawValue / 1000.0  // Convert integer to decimal (€/kWh)
+    
+    logInfo("Charging", "🔄 Converted raw value: " + rawValue + " → " + realValue + " €/kWh")
+    
+    Charging_Threshold_Real.postUpdate(realValue)
+end
+
+rule "Disable Price Charging when Time Mode is Enabled"
+when
+    Item Senec_Auto_Time_Mode changed to ON
+then
+    if (Price_Charging_Enabled.state == ON) {
+        logInfo("Senec_Mode", "🔄 Time-based charging enabled. Disabling price-based charging to avoid conflicts.")
+        Price_Charging_Enabled.sendCommand(OFF)
+    }
+end
+
+rule "Disable Time Mode when Price Charging is Enabled"
+when
+    Item Price_Charging_Enabled changed to ON
+then
+    if (Senec_Auto_Time_Mode.state == ON) {
+        logInfo("Senec_Mode", "🔄 Price-based charging enabled. Disabling time-based charging to avoid conflicts.")
+        Senec_Auto_Time_Mode.sendCommand(OFF)
+    }
 end
